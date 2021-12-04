@@ -8,88 +8,91 @@
  * Code Review: Onyinyechi Ogbuanya
  */
 
- const findAllSolutions = function(grid, dictionary) {
-	//let solutions = [];
-	//return solutions;
-	for (let i=0; i<grid.length; i++){
-		for (let j=0; j<grid.length; j++){
-			if (grid[i][j] === "S" || grid[i][j] === "Q") 
-			{
-				return [];
-			}
-		}
-	}
-	let solutions = [];
-	const moves = [[-1, 0], [0, 1], [1, 0], [0, -1], [-1,-1], [-1,1], [1,-1], [1,1]];
-	const upperwords = dictionary.map(word => word.toUpperCase());
-	for (let i = 0; i < grid.length; i++)
-	{
-		for ( let j = 0; j < grid[i].length; j++)
-		{
-			grid[i][j] = grid[i][j].toUpperCase();
-		}
-	}
-  
+ function TrieNode(character) {
+  this.char = character;
+  this.parent = null;
+  this.children = {};
+  this.correct = false;
+}
 
-	const buildTrie = () => 
-	{
-		const root = {};
-		for (const word of upperwords) 
-		{
-			let node = root;
-			for (let i = 0; i < word.length; i++) 
-			{
-				let char = word[i];
-				if (char === "Q")
-				{
-					char = "QU";
-					i++;
-				}
-				if (char === "S")
-				{
-					char = "ST";
-					i++;
-				}
-				if (node[char] == null) node[char] = {};
-				node = node[char];
-			}
-			node.upperwords = word;
-		}
-		return root;
-	};
-   
-	const search = (node, x, y) => 
-	{
-		if (node.upperwords != null) 
-		{
-			if(node.upperwords.length > 2)
-			{
-				solutions.push(node.upperwords);
-			}
-			node.upperwords = null; // no duplicate printing
-		}
-
-		if (x < 0 || x >= grid.length || y < 0 || y >= grid[0].length) return;
-		if (node[grid[x][y]] == null) return;
-
-		const char = grid[x][y];
-		grid[x][y] = "*"; // visited
-		for (const [dx, dy] of moves) {
-			const i = x + dx;
-			const j = y + dy;
-			search(node[char], i, j);
-		}
-		grid[x][y] = char; // Reset
-	};
-
-	const root = buildTrie();
-	for (let i = 0; i < grid.length; i++) {
-		for (let j = 0; j < grid[0].length; j++) {
-			search(root, i, j);
-		}
-	}
-	return solutions;
+// Returns the word corresponding to this node.
+TrieNode.prototype.word = function() {
+  var ans = [];
+  var node = this;
+  while (node !== null) {
+    ans.push(node.char);
+    node = node.parent;
+  }
+  ans.reverse();
+  return ans.join('');
 };
 
+function trie(root, given) {
+    let node = root;
+    for (let i = 0; i < given.length; ++i) {
+	let c = given[i];
+  
+	if (c === 'q' && given[i + 1] === 'u') {
+	    c = 'qu';
+	    i = i + 1;
+	}
+  if (c === 's' && given[i + 1] === 't') {
+	    c = 'st';
+	    i = i + 1;
+	}
+	if (node.children[c] === undefined) {
+	    node.children[c] = new TrieNode(c);
+	    node.children[c].parent = node;
+	}
+	 node = node.children[c];
+  }
+  node.correct = true;
+}
+
+
+function buggleSolver(dict, grid) {
+    this.trieRoot = new TrieNode();
+    for (let given of dict) {
+	trie(this.trieRoot, given);
+    }
+    this.grid = grid;
+    this.solutions = new Set();
+}
+
+buggleSolver.prototype.solve = function() {
+  for (let row = 0; row < this.grid.length; ++row) {
+    for (let col = 0; col < this.grid[0].length; ++col) {
+      this.recursiveSolve(row, col, this.trieRoot);
+    }
+  }
+};
+
+buggleSolver.prototype.recursiveSolve = function(row, col, parentNode) {
+  if (row < 0 || row >= this.grid.length || col < 0 || col >= this.grid[0].length) return;
+  const presentBlock = this.grid[row][col];
+  const presentNode = parentNode.children[presentBlock];
+  if (presentNode === undefined) return;  
+
+  if (presentNode.correct) {
+      if(presentNode.word().length >= 3) { 
+          this.solutions.add(presentNode.word());
+      }
+  }
+  this.grid[row][col] = '.';  
+
+  for (let dx = -1; dx < 2; ++dx) {
+    for (let dy = -1; dy < 2; ++dy) {
+      this.recursiveSolve(row + dx, col + dy, presentNode);
+    }
+  }
+
+  this.grid[row][col] = presentBlock;  
+};
+
+function findAllSolutions(grid, dict) {
+  let solver = new buggleSolver(dict, grid);
+  solver.solve();
+  return [...solver.solutions];
+}
 
 export default findAllSolutions;
